@@ -1,7 +1,9 @@
 #pragma once
 
+#include <functional>
 #include <memory>
-#include <unordered_set>
+#include <string_view>
+#include <unordered_map>
 #include <vector>
 
 class TZipHeader;
@@ -9,12 +11,17 @@ class TZipHeader;
 class IZipUpdater {
 public:
     virtual void Apply(TZipHeader&) const = 0;
+    virtual bool Validate(const std::vector<std::string>& args) {
+        return args.size() == 0;
+    }
+
     virtual ~IZipUpdater() = default;
 };
 
 class TZipUpdaters {
 public:
-    static std::unordered_set<std::string_view> SupportedFilters();
+    using TArguments = std::unordered_map<std::string_view, std::function<bool(const std::vector<std::string>&)>>;
+    static TArguments SupportedFilters();
 
     void Create(const std::vector<std::string>& filter);
 

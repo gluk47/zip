@@ -15,7 +15,7 @@ public:
 
     void print_info(std::ostream& str) const;
 
-    std::tuple <
+    std::tuple<
         uint32_t,
 
         uint16_t,

@@ -3,6 +3,20 @@
 #include <iomanip>
 #include <iostream>
 
+/// variadic template
+// template<typename T...>
+// void print_vector(const vector<T>& data, ostream&) {}
+
+// accumulate(1,2,3)
+// accumulate(1,2.0,3)
+// accumulate(1,2,"3",4.0)
+
+template<typename... T>
+auto accumulate(T&&... args) -> decltype((args + ...)) {
+    return (args + ...);
+}
+
+// 0x1234 -> 34 12
 void TZipHeader::read_header(std::istream& str) {
     std::apply([&](auto&&... args){
         (

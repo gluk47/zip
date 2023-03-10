@@ -4,32 +4,55 @@
 #include "filters/resize.h"
 
 #include <functional>
+#include <memory>
+#include <string_view>
+#include <unordered_map>
 
 using namespace std;
 
 
 namespace {
+
 template <typename T>
-unique_ptr<IZipUpdater> Create(const vector<string>& s) {
+struct TFilterInfo {
+static unique_ptr<IZipUpdater> Create(const vector<string>& s) {
     return make_unique<T>(s);
 }
 
-using TCreate = unique_ptr<IZipUpdater> (*)(const vector<string>& s);
-
-unordered_map<string, TCreate> Supported = {
-    {"rename", Create<TZipRename>},
-    {"resize", Create<TZipResize>},
+static bool Validate(const vector<string>& s) {
+    return T::ArgValidator::Validate(s);
+}
 };
+
+typedef unique_ptr<IZipUpdater> CreateTypedef(const vector<string>& s);
+
+using TCreate = unique_ptr<IZipUpdater> (*)(const vector<string>&);
+using TValidate = bool (*)(const vector<string>&);
+
+// type erasure
+using TFuncCreate = std::function<IZipUpdater(const vector<string>&)>;
+
+unordered_map<string, pair<TCreate, TValidate>> Supported = {
+    {"rename", make_pair(TFilterInfo<TZipRename>::Create, TFilterInfo<TZipRename>::Validate)},
+    {"resize", make_pair(TFilterInfo<TZipResize>::Create, TFilterInfo<TZipResize>::Validate)},
+};
+
+/*
+for (const vector<string>& filter : filters)
+    if (filter[0] == "rename") {
+        Updaters_.emplace_back(make_unique<TZipRename>(filter));
+    } else if (filter[0] == "resize") {
+
+    }*/
 
 }  // namespace
 
-std::unordered_set<std::string_view> TZipUpdaters::SupportedFilters() {
-    std::unordered_set<std::string_view> names;
+TZipUpdaters::TArguments TZipUpdaters::SupportedFilters() {
+    TArguments names;
     for (const auto& f : Supported)
-        names.emplace(f.first);
+        names.emplace(f.first, f.second.second);
     return names;
 }
-
 
 void TZipUpdaters::Apply(TZipHeader& zip) const {
     for (const auto& f : Updaters_)
@@ -39,8 +62,8 @@ void TZipUpdaters::Apply(TZipHeader& zip) const {
 void TZipUpdaters::Create(const std::vector<std::string>& filter) {
     const auto& i = Supported.find(filter.front());
     if (i == Supported.end())
-        throw std::runtime_error("Unsupported filter " + filter.front());
-    Updaters_.push_back(i->second(filter));
+        throw std::invalid_argument("Unsupported filter " + filter.front());
+    Updaters_.push_back(i->second.first(filter));
 }
 
 

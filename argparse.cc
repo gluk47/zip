@@ -1,5 +1,6 @@
 #include "argparse.h"
 
+#include <cassert>
 #include <iostream>
 
 using namespace std;
@@ -15,7 +16,7 @@ TArgParser::TParsed TArgParser::Parse(int argc, const char* argv[]) {
         argc--;
         argv++;
 
-        result.Filename = *argv++;
+        result.Filename = *argv++; // argv[0]; *(argv + 0)
         argc--;
 
         while (argc --> 0) {
@@ -23,7 +24,7 @@ TArgParser::TParsed TArgParser::Parse(int argc, const char* argv[]) {
                 result.Filters.emplace_back();
                 result.Filters.back().emplace_back(*argv + 1);
                 auto& fname = result.Filters.back().back();
-                if (!KnownFilters_.contains(fname)) {
+                if (!ArgsValidator_.contains(fname)) {
                     throw invalid_argument( "Unsupported filter «" + fname + "»\n");
                     return result;
                 }
@@ -32,18 +33,27 @@ TArgParser::TParsed TArgParser::Parse(int argc, const char* argv[]) {
                     throw invalid_argument("Missing a filter name before an argument «"s + *argv + "»\n");
                     return result;
                 }
+                // 0.6 sigma
                 result.Filters.back().emplace_back(*argv);
             }
             argv++;
         }
 
+        for (const auto& f : result.Filters) {
+            auto i = ArgsValidator_.find(f[0]);
+            assert (i != ArgsValidator_.end());
+            if(!i->second(f)) {
+                throw std::invalid_argument("Bad arguments for filter «"s + f[0] + "»");
+            }
+        }
+
         result.NeedHelp = false;
     } catch (exception& x) {
-        cout << "Usage: " << argv[0] << " sample.zip -crop 800 600 -gs -blur 0.5\n";
+        cout << "Usage: ./list sample.zip -crop 800 600 -gs -blur 0.5\n";
         cout << "Supported filters are:";
-        for (const auto& f : KnownFilters_)
-            cout << ' ' << f;
-        cout << '\n';
+        for (const auto& f : ArgsValidator_)
+            cout << ' ' << f.first;
+        cout << "\n\n" << x.what() << '\n';
     }
     return result;
 }
